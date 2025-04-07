@@ -5,9 +5,9 @@ from ..data.games import Game
 
 
 class ReviewForm(FlaskForm):
-    game_id = SelectField("Игра",validators=[DataRequired()])
-    rating = IntegerField("Оценка (1-5)",validators=[DataRequired(),NumberRange(min=1, max=5)])
-    text = TextAreaField("Текст отзыва",validators=[DataRequired()])
+    game_id = SelectField("Игра", validators=[DataRequired()])
+    rating = IntegerField("Оценка (1-5)", validators=[DataRequired(), NumberRange(min=1, max=5)])
+    text = TextAreaField("Текст отзыва", validators=[DataRequired()])
     submit = SubmitField("Опубликовать")
 
     def __init__(self, *args, **kwargs):
