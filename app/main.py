@@ -16,6 +16,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(
 )
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 
 @login_manager.user_loader
@@ -24,21 +25,35 @@ def load_user(user_id):
     return db_sess.query(User).get(user_id)
 
 
-
 @app.route("/")
 def index():
     db_sess = db_session.create_session()
-    if current_user.is_authenticated:
-        games = db_sess.query(Game).filter(
-            (Game.user == current_user) | (Game.is_private != True))
-    else:
-        games = db_sess.query(Game).filter(Game.is_private != True)
-    # news = db_sess.query(News).filter(News.is_private != True)
-    return render_template("index.html", games=games)
+    
+    # Базовый запрос
+    query = db_sess.query(Game)
+    
+    # Фильтрация по жанру
+    genre = request.args.get('genre')
+    if genre:
+        query = query.filter(Game.genre == genre)
+    
+    # Поиск по названию и описанию
+    search = request.args.get('search')
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Game.title.ilike(search_term)) |
+            (Game.description.ilike(search_term))
+        )
+    
+    games = query.all()
+    return render_template("index.html", title="Главная", games=games)
 
 
 @app.route('/register', methods=['GET', 'POST'])
-def reqister():
+def register():
+    if current_user.is_authenticated:
+        return redirect('/')
     form = RegisterForm()
     if form.validate_on_submit():
         if form.password.data != form.password_again.data:
@@ -52,8 +67,11 @@ def reqister():
                                    message="Такой пользователь уже есть")
         user = User(
             name=form.name.data,
+            surname=form.surname.data,
+            age=form.age.data,
             email=form.email.data,
-            about=form.about.data
+            favorite_genres=form.favorite_genres.data,
+            location=form.location.data
         )
         user.set_password(form.password.data)
         db_sess.add(user)
@@ -62,31 +80,10 @@ def reqister():
     return render_template('register.html', title='Регистрация', form=form)
 
 
-@app.route("/cookie_test")
-def cookie_test():
-    visits_count = int(request.cookies.get("visits_count", 0))
-    if visits_count:
-        res = make_response(
-            f"Вы пришли на эту страницу {visits_count + 1} раз")
-        res.set_cookie("visits_count", str(visits_count + 1),
-                       max_age=60 * 60 * 24 * 365 * 2)
-    else:
-        res = make_response(
-            "Вы пришли на эту страницу в первый раз за последние 2 года")
-        res.set_cookie("visits_count", '1',
-                       max_age=60 * 60 * 24 * 365 * 2)
-    return res
-
-
-@app.route("/session_test")
-def session_test():
-    visits_count = session.get('visits_count', 0)
-    session['visits_count'] = visits_count + 1
-    return make_response(
-        f"Вы пришли на эту страницу {visits_count + 1} раз")
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect('/')
     form = LoginForm()
     if form.validate_on_submit():
         db_sess = db_session.create_session()
@@ -94,10 +91,11 @@ def login():
         if user and user.check_password(form.password.data):
             login_user(user, remember=form.remember_me.data)
             return redirect("/")
-        return render_template('login_3.html',
+        return render_template('login.html',
                                message="Неправильный логин или пароль",
                                form=form)
-    return render_template('login_3.html', title='Авторизация', form=form)
+    return render_template('login.html', title='Авторизация', form=form)
+
 
 @app.route('/logout')
 @login_required
@@ -105,101 +103,90 @@ def logout():
     logout_user()
     return redirect("/")
 
-@app.route('/games',  methods=['GET', 'POST'])
+
+@app.route('/games', methods=['GET', 'POST'])
 @login_required
 def add_games():
     form = GameForm()
     if form.validate_on_submit():
         db_sess = db_session.create_session()
-        games = Game()
-        games.title = form.title.data
-        games.content = form.content.data
-        games.is_private = form.is_private.data
-        current_user.news.append(games)
-        db_sess.merge(current_user)
+        game = Game()
+        game.title = form.title.data
+        game.duration = form.duration.data
+        game.count_of_players = form.count_of_players.data
+        game.genre = form.genre.data
+        game.complexity = form.complexity.data
+        game.description = form.description.data
+        game.added_by = current_user.id
+        db_sess.add(game)
         db_sess.commit()
         return redirect('/')
-    return render_template('games.html', title='Добавление новости',
-                           form=form)
+    return render_template('games.html', title='Добавление игры',
+                        form=form)
+
 
 @app.route('/games/<int:id>', methods=['GET', 'POST'])
 @login_required
-def edit_news(id):
+def edit_game(id):
     form = GameForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
-        games = db_sess.query(Game).filter(Game.id == id,
-                                          Game.user == current_user
-                                          ).first()
-        if games:
-            form.title.data = games.title
-            form.content.data = games.content
-            form.is_private.data = games.is_private
+        game = db_sess.query(Game).filter(Game.id == id,
+                                        Game.added_by == current_user.id).first()
+        if game:
+            form.title.data = game.title
+            form.duration.data = game.duration
+            form.count_of_players.data = game.count_of_players
+            form.genre.data = game.genre
+            form.complexity.data = game.complexity
+            form.description.data = game.description
         else:
             abort(404)
     if form.validate_on_submit():
         db_sess = db_session.create_session()
-        games = db_sess.query(Game).filter(Game.id == id,
-                                          Game.user == current_user
-                                          ).first()
-        if games:
-            games.title = form.title.data
-            games.content = form.content.data
-            games.is_private = form.is_private.data
+        game = db_sess.query(Game).filter(Game.id == id,
+                                        Game.added_by == current_user.id).first()
+        if game:
+            game.title = form.title.data
+            game.duration = form.duration.data
+            game.count_of_players = form.count_of_players.data
+            game.genre = form.genre.data
+            game.complexity = form.complexity.data
+            game.description = form.description.data
             db_sess.commit()
             return redirect('/')
         else:
             abort(404)
     return render_template('games.html',
-                           title='Редактирование новости',
-                           form=form
-                           )
+                        title='Редактирование игры',
+                        form=form)
+
 
 @app.route('/games_delete/<int:id>', methods=['GET', 'POST'])
 @login_required
 def games_delete(id):
     db_sess = db_session.create_session()
-    games = db_sess.query(Game).filter(Game.id == id,
-                                      Game.user == current_user
-                                      ).first()
-    if games:
-        db_sess.delete(games)
+    game = db_sess.query(Game).filter(Game.id == id,
+                                      Game.user == current_user).first()
+    if game:
+        db_sess.delete(game)
         db_sess.commit()
     else:
         abort(404)
     return redirect('/')
 
+
+@app.context_processor
+def utility_processor():
+    def get_unique_genres():
+        db_sess = db_session.create_session()
+        genres = db_sess.query(Game.genre).distinct().all()
+        return [genre[0] for genre in genres if genre[0]]
+    return dict(get_unique_genres=get_unique_genres)
+
+
 def main():
     db_session.global_init("db/blogs.db")
-    # user = User()
-    # user.name = "Пользователь 1"
-    # user.about = "биография пользователя 1"
-    # user.email = "email@email.ru"
-    # user2 = User()
-    # user2.name = "Пользователь 2"
-    # user2.about = "биография пользователя 2"
-    # user2.email = "email2@email.ru"
-    # user3 = User()
-    # user3.name = "Пользователь 3"
-    # user3.about = "биография пользователя 3"
-    # user3.email = "email3@email.ru"
-    # db_sess = db_session.create_session()
-    # db_sess.add(user)
-    # db_sess.add(user2)
-    # db_sess.add(user3)
-    # db_sess.commit()
-    # news = News(title="Первая новость", content="Привет блог!",
-    #             user_id=1, is_private=False)
-    # db_sess.add(news)
-    # user = db_sess.query(User).filter(User.id == 1).first()
-    # news = News(title="Вторая новость", content="Уже вторая запись!",
-    #             user=user, is_private=False)
-    # db_sess.add(news)
-    # user = db_sess.query(User).filter(User.id == 1).first()
-    # news = News(title="Личная запись", content="Эта запись личная",
-    #             is_private=True)
-    # user.news.append(news)
-    # db_sess.commit()
     app.run()
 
 

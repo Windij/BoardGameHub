@@ -1,0 +1,16 @@
+h4 {
+    color: #bfbfbf;
+    padding: 15px;
+}
+
+.form-data {
+    margin: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.form-data p {
+    margin: 10px 0;
+}
