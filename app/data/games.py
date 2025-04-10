@@ -28,6 +28,7 @@ class Game(SqlAlchemyBase):
     genre = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     complexity = sqlalchemy.Column(sqlalchemy.String, nullable=True)
     description = sqlalchemy.Column(sqlalchemy.Text, nullable=True)
+    image = sqlalchemy.Column(sqlalchemy.LargeBinary, nullable=True)  # BLOB для хранения изображений
 
     user = orm.relationship("User", back_populates="added_games")
     sessions = orm.relationship("GameSession", back_populates="game")
@@ -35,4 +36,4 @@ class Game(SqlAlchemyBase):
 
     def __repr__(self):
         return (
-            f"<Game> {self.id} {self.team_leader} {self.job} {self.work_size}h {self.collaborators}")
+            f"<Game> {self.id} {self.title} {self.genre} {self.complexity}")

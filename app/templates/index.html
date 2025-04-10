@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Настольные игры</h1>
+    <h1 class="display-4">Настольные игры</h1>
     {% if current_user.is_authenticated %}
         <a href="{{ url_for('add_games') }}" class="btn btn-primary btn-lg">
             <i class="bi bi-plus-circle"></i> Добавить игру
@@ -13,35 +13,138 @@
 <div class="row row-cols-1 row-cols-md-3 g-4">
     {% for game in games %}
         <div class="col">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">{{ game.title }}</h5>
-                    <div class="card-text">
-                        <p><strong>Длительность:</strong> {{ game.duration }}</p>
-                        <p><strong>Количество игроков:</strong> {{ game.count_of_players }}</p>
-                        <p><strong>Жанр:</strong> {{ game.genre }}</p>
-                        <p><strong>Сложность:</strong> {{ game.complexity }}</p>
-                        <p class="mt-3">{{ game.description }}</p>
-                    </div>
-                    <p class="card-text">
-                        <small class="text-muted">
-                            Добавил: {{ game.user.name }} {{ game.user.surname }}
-                        </small>
-                    </p>
-                    {% if current_user.is_authenticated and current_user.id == game.added_by %}
-                        <div class="btn-group w-100 mt-3">
-                            <a href="{{ url_for('edit_game', id=game.id) }}" class="btn btn-warning">
-                                <i class="bi bi-pencil-square"></i> Изменить
-                            </a>
-                            <a href="{{ url_for('games_delete', id=game.id) }}" class="btn btn-danger" 
-                               onclick="return confirm('Вы уверены, что хотите удалить эту игру?')">
-                                <i class="bi bi-trash"></i> Удалить
-                            </a>
+            <div class="card h-100 shadow-sm hover-shadow">
+                <div class="card-img-wrapper">
+                    {% if game.image %}
+                        <img src="{{ url_for('game_image', game_id=game.id) }}" 
+                             class="card-img-top" 
+                             alt="{{ game.title }}">
+                    {% else %}
+                        <div class="default-img">
+                            <i class="bi bi-controller text-muted"></i>
                         </div>
                     {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <h5 class="card-title fw-bold text-primary mb-0">{{ game.title }}</h5>
+                        <span class="badge bg-{{ 'success' if game.complexity == 'Низкая' else 'warning' if game.complexity == 'Средняя' else 'danger' }} rounded-pill">
+                            {{ game.complexity }}
+                        </span>
+                    </div>
+                    
+                    <div class="card-text mb-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-clock me-2 text-muted"></i>
+                            <span>{{ game.duration }}</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-people me-2 text-muted"></i>
+                            <span>{{ game.count_of_players }} игроков</span>
+                        </div>
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="bi bi-tags me-2 text-muted"></i>
+                            <span class="badge bg-info text-dark">{{ game.genre }}</span>
+                        </div>
+                        <p class="mt-3 mb-0 text-muted">{{ game.description }}</p>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <small class="text-muted">
+                            <i class="bi bi-person-circle me-1"></i>
+                            {{ game.user.name }} {{ game.user.surname }}
+                        </small>
+                        {% if current_user.is_authenticated and current_user.id == game.user.id %}
+                            <div class="btn-group">
+                                <a href="{{ url_for('edit_game', id=game.id) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-pencil"></i> Изменить
+                                </a>
+                                <a href="{{ url_for('games_delete', id=game.id) }}" class="btn btn-outline-danger btn-sm" 
+                                   onclick="return confirm('Вы уверены, что хотите удалить эту игру?');">
+                                    <i class="bi bi-trash"></i> Удалить
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     {% endfor %}
 </div>
+
+<style>
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    background-color: #f8f9fa;
+}
+
+.card:hover {
+    background-color: #ffffff;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 1em;
+}
+
+.btn-group .btn {
+    border-radius: 8px;
+    margin: 0 2px;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    line-height: 1.4;
+}
+
+.text-muted {
+    font-size: 0.9rem;
+    color: #6c757d !important;
+}
+
+.display-4 {
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 1.5rem;
+    background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+}
+
+.card-img-wrapper {
+    height: 200px;
+    overflow: hidden;
+    border-radius: 15px 15px 0 0;
+    background-color: #e9ecef;
+}
+
+.card-img-top {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.default-img {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.default-img i {
+    font-size: 4rem;
+    color: #adb5bd;
+}
+</style>
 {% endblock %} 

@@ -1,6 +1,7 @@
 import datetime
-
-from flask import Flask, request, make_response, session, abort
+import os
+from io import BytesIO
+from flask import Flask, request, make_response, session, abort, send_file
 from data import db_session
 from data.users import User
 from data.games import Game
@@ -14,6 +15,7 @@ app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(
     days=365
 )
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -104,6 +106,18 @@ def logout():
     return redirect("/")
 
 
+@app.route('/game_image/<int:game_id>')
+def game_image(game_id):
+    db_sess = db_session.create_session()
+    game = db_sess.query(Game).get(game_id)
+    if game and game.image:
+        return send_file(
+            BytesIO(game.image),
+            mimetype='image/jpeg'
+        )
+    return abort(404)
+
+
 @app.route('/games', methods=['GET', 'POST'])
 @login_required
 def add_games():
@@ -118,11 +132,16 @@ def add_games():
         game.complexity = form.complexity.data
         game.description = form.description.data
         game.added_by = current_user.id
+        
+        # Сохраняем изображение, если оно есть
+        if form.image.data:
+            image_data = form.image.data.read()
+            game.image = image_data
+        
         db_sess.add(game)
         db_sess.commit()
         return redirect('/')
-    return render_template('games.html', title='Добавление игры',
-                        form=form)
+    return render_template('games.html', title='Добавление игры', form=form)
 
 
 @app.route('/games/<int:id>', methods=['GET', 'POST'])
@@ -153,13 +172,17 @@ def edit_game(id):
             game.genre = form.genre.data
             game.complexity = form.complexity.data
             game.description = form.description.data
+            
+            # Обновляем изображение, если загружено новое
+            if form.image.data:
+                image_data = form.image.data.read()
+                game.image = image_data
+            
             db_sess.commit()
             return redirect('/')
         else:
             abort(404)
-    return render_template('games.html',
-                        title='Редактирование игры',
-                        form=form)
+    return render_template('games.html', title='Редактирование игры', form=form)
 
 
 @app.route('/games_delete/<int:id>', methods=['GET', 'POST'])
@@ -186,7 +209,7 @@ def utility_processor():
 
 
 def main():
-    db_session.global_init("db/blogs.db")
+    db_session.global_init("db/boardgames.db")
     app.run()
 
 
