@@ -1,6 +1,7 @@
 import sqlalchemy
 from sqlalchemy import orm
 from .db_session import SqlAlchemyBase
+from datetime import datetime
 
 
 class GameSession(SqlAlchemyBase):
@@ -8,11 +9,15 @@ class GameSession(SqlAlchemyBase):
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
     game_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('games.id'), nullable=False)
-    organizer_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'), nullable=False)
-    date = sqlalchemy.Column(sqlalchemy.DateTime, nullable=False)
+    creator_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'), nullable=False)
+    date = sqlalchemy.Column(sqlalchemy.Date, nullable=False)
+    time = sqlalchemy.Column(sqlalchemy.Time, nullable=False)
     location = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    max_participants = sqlalchemy.Column(sqlalchemy.Integer)
+    description = sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    max_players = sqlalchemy.Column(sqlalchemy.Integer, nullable=False)
+    current_players = sqlalchemy.Column(sqlalchemy.Integer, default=1)
+    created_at = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.utcnow)
     status = sqlalchemy.Column(sqlalchemy.String, default="Запланировано")
 
     game = orm.relationship("Game", back_populates="sessions")
-    organizer = orm.relationship("User", back_populates="organized_sessions")
+    creator = orm.relationship("User", back_populates="created_sessions")

@@ -1,14 +1,17 @@
 import datetime
 import os
 from io import BytesIO
-from flask import Flask, request, make_response, session, abort, send_file
+from flask import Flask, request, make_response, session, abort, send_file, flash, redirect, url_for
 from data import db_session
 from data.users import User
 from data.games import Game
-from flask import render_template, redirect
+from flask import render_template
 from forms.user import RegisterForm, LoginForm
 from forms.game import GameForm
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from forms.game_session import GameSessionForm
+from data.game_sessions import GameSession
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -24,15 +27,17 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     db_sess = db_session.create_session()
-    return db_sess.query(User).get(user_id)
+    user = db_sess.get(User, user_id)
+    db_sess.close()
+    return user
 
 
 @app.route("/")
 def index():
     db_sess = db_session.create_session()
     
-    # Базовый запрос
-    query = db_sess.query(Game)
+    # Базовый запрос с предварительной загрузкой пользователя
+    query = db_sess.query(Game).options(joinedload(Game.user))
     
     # Фильтрация по жанру
     genre = request.args.get('genre')
@@ -49,6 +54,7 @@ def index():
         )
     
     games = query.all()
+    db_sess.close()
     return render_template("index.html", title="Главная", games=games)
 
 
@@ -203,14 +209,147 @@ def games_delete(id):
 def utility_processor():
     def get_unique_genres():
         db_sess = db_session.create_session()
-        genres = db_sess.query(Game.genre).distinct().all()
-        return [genre[0] for genre in genres if genre[0]]
+        try:
+            genres = db_sess.query(Game.genre).distinct().all()
+            return [genre[0] for genre in genres if genre[0]]
+        finally:
+            db_sess.close()
     return dict(get_unique_genres=get_unique_genres)
 
 
+@app.route('/game_sessions')
+def game_sessions():
+    db_sess = db_session.create_session()
+    try:
+        if current_user.is_authenticated:
+            # Получаем все сессии из города пользователя
+            sessions = db_sess.query(GameSession).options(
+                joinedload(GameSession.game),
+                joinedload(GameSession.creator)
+            ).filter(
+                GameSession.location.like(f"%{current_user.location}%")
+            ).order_by(GameSession.date).all()
+        else:
+            sessions = []
+        return render_template('game_sessions.html', sessions=sessions)
+    finally:
+        db_sess.close()
+
+@app.route('/game_sessions/new', methods=['GET', 'POST'])
+@login_required
+def game_session_new():
+    form = GameSessionForm()
+    if form.validate_on_submit():
+        db_sess = db_session.create_session()
+        try:
+            session = GameSession(
+                game_id=form.game.data,
+                date=form.date.data,
+                time=form.time.data,
+                location=form.location.data,
+                description=form.description.data,
+                max_players=form.max_players.data,
+                creator_id=current_user.id,
+                current_players=1
+            )
+            db_sess.add(session)
+            db_sess.commit()
+            flash('Игровая встреча успешно создана!', 'success')
+            return redirect('/game_sessions')
+        finally:
+            db_sess.close()
+    
+    return render_template('game_session_form.html', 
+                         title='Новая встреча',
+                         form=form)
+
+@app.route('/game_sessions/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def game_sessions_edit(id):
+    form = GameSessionForm()
+    db_sess = db_session.create_session()
+    try:
+        session = db_sess.query(GameSession).filter(
+            GameSession.id == id,
+            GameSession.creator_id == current_user.id
+        ).first()
+        
+        if not session:
+            abort(404)
+        
+        if request.method == "GET":
+            form.game.data = session.game_id
+            form.date.data = session.date
+            form.time.data = session.time
+            form.location.data = session.location
+            form.description.data = session.description
+            form.max_players.data = session.max_players
+        
+        if form.validate_on_submit():
+            session.game_id = form.game.data
+            session.date = form.date.data
+            session.time = form.time.data
+            session.location = form.location.data
+            session.description = form.description.data
+            session.max_players = form.max_players.data
+            
+            db_sess.commit()
+            flash('Встреча успешно обновлена!', 'success')
+            return redirect('/game_sessions')
+            
+        return render_template('game_session_form.html',
+                             title='Редактирование встречи',
+                             form=form)
+    finally:
+        db_sess.close()
+    
+    return redirect('/game_sessions')
+
+@app.route('/game_sessions/<int:id>/delete', methods=['POST'])
+@login_required
+def game_sessions_delete(id):
+    db_sess = db_session.create_session()
+    try:
+        session = db_sess.query(GameSession).filter(
+            GameSession.id == id,
+            GameSession.creator_id == current_user.id
+        ).first()
+        
+        if session:
+            db_sess.delete(session)
+            db_sess.commit()
+            flash('Встреча успешно удалена!', 'success')
+        else:
+            abort(404)
+    finally:
+        db_sess.close()
+    return redirect('/game_sessions')
+
+@app.route('/game_sessions/<int:id>/join', methods=['POST'])
+@login_required
+def game_sessions_join(id):
+    db_sess = db_session.create_session()
+    try:
+        session = db_sess.get(GameSession, id)
+        
+        if not session:
+            abort(404)
+        
+        if session.current_players >= session.max_players:
+            flash('К сожалению, все места уже заняты.', 'warning')
+            return redirect('/game_sessions')
+        
+        session.current_players += 1
+        db_sess.commit()
+        flash('Вы успешно присоединились к встрече!', 'success')
+    finally:
+        db_sess.close()
+    return redirect('/game_sessions')
+
 def main():
     db_session.global_init("db/boardgames.db")
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
 
 
 if __name__ == '__main__':

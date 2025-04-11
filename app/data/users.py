@@ -23,7 +23,7 @@ class User(SqlAlchemyBase, UserMixin):
     # modified_date = sqlalchemy.Column(sqlalchemy.DateTime, default=datetime.datetime.now)
 
     added_games = orm.relationship("Game", back_populates="user")
-    organized_sessions = orm.relationship("GameSession", back_populates="organizer")
+    created_sessions = orm.relationship("GameSession", back_populates="creator")
     reviews = orm.relationship("Review", back_populates="author")
 
     def set_password(self, password):

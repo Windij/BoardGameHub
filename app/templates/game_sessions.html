@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Игровые встречи</h1>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('game_session_new') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Создать встречу
+        </a>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="row">
+        {% for session in sessions %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ session.game.title }}</h5>
+                    <h6 class="card-subtitle mb-2 text-muted">
+                        {{ session.date.strftime('%d.%m.%Y') }} в {{ session.time.strftime("%H:%M") }}
+                    </h6>
+                    <p class="card-text">{{ session.description }}</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Организатор: {{ session.creator.name }} {{ session.creator.surname }}
+                        </small>
+                    </p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Место: {{ session.location }}
+                        </small>
+                    </p>
+                    <p class="card-text">
+                        Участники: {{ session.current_players }}/{{ session.max_players }}
+                    </p>
+
+                    {% if current_user.is_authenticated %}
+                    {% if session.creator_id == current_user.id %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('game_sessions_edit', id=session.id) }}" class="btn btn-outline-primary">
+                            <i class="fas fa-edit"></i> Изменить
+                        </a>
+                        <form action="{{ url_for('game_sessions_delete', id=session.id) }}" method="post"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('Вы уверены, что хотите удалить эту встречу?')">
+                                <i class="fas fa-trash"></i> Удалить
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-success" {% if session.current_players>=
+                            session.max_players %}disabled{% endif %}>
+                            <i class="fas fa-user-plus"></i> Присоединиться
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                {% if current_user.is_authenticated %}
+                В вашем городе пока нет игровых встреч. Создайте первую!
+                {% else %}
+                Войдите в систему, чтобы видеть игровые встречи в вашем городе.
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 
