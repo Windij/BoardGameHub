@@ -1,7 +1,6 @@
 import datetime
-import os
 from io import BytesIO
-from flask import Flask, request, make_response, session, abort, send_file, flash, redirect, url_for
+from flask import Flask, request, abort, send_file, flash, redirect
 from data import db_session
 from data.users import User
 from data.games import Game
@@ -223,21 +222,18 @@ def game_sessions():
     try:
         if current_user.is_authenticated:
             # Получаем все сессии из города пользователя
-            sessions = db_sess.query(GameSession).options(
-                joinedload(GameSession.game),
-                joinedload(GameSession.creator)
-            ).filter(
+            sessions = db_sess.query(GameSession).filter(
                 GameSession.location.like(f"%{current_user.location}%")
             ).order_by(GameSession.date).all()
         else:
             sessions = []
-        return render_template('game_sessions.html', sessions=sessions)
+        return render_template('game_sessions.html', sessions=sessions, form=GameSessionForm())
     finally:
         db_sess.close()
 
-@app.route('/game_sessions/new', methods=['GET', 'POST'])
+@app.route('/game_sessions', methods=['POST'])
 @login_required
-def game_session_new():
+def game_sessions_create():
     form = GameSessionForm()
     if form.validate_on_submit():
         db_sess = db_session.create_session()
@@ -255,13 +251,14 @@ def game_session_new():
             db_sess.add(session)
             db_sess.commit()
             flash('Игровая встреча успешно создана!', 'success')
-            return redirect('/game_sessions')
         finally:
             db_sess.close()
+        return redirect('/game_sessions')
     
-    return render_template('game_session_form.html', 
-                         title='Новая встреча',
-                         form=form)
+    for field, errors in form.errors.items():
+        for error in errors:
+            flash(f'{getattr(form, field).label.text}: {error}', 'danger')
+    return redirect('/game_sessions')
 
 @app.route('/game_sessions/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -284,6 +281,7 @@ def game_sessions_edit(id):
             form.location.data = session.location
             form.description.data = session.description
             form.max_players.data = session.max_players
+            return render_template('game_sessions.html', title='Редактирование встречи', form=form)
         
         if form.validate_on_submit():
             session.game_id = form.game.data
@@ -296,13 +294,12 @@ def game_sessions_edit(id):
             db_sess.commit()
             flash('Встреча успешно обновлена!', 'success')
             return redirect('/game_sessions')
-            
-        return render_template('game_session_form.html',
-                             title='Редактирование встречи',
-                             form=form)
     finally:
         db_sess.close()
     
+    for field, errors in form.errors.items():
+        for error in errors:
+            flash(f'{getattr(form, field).label.text}: {error}', 'danger')
     return redirect('/game_sessions')
 
 @app.route('/game_sessions/<int:id>/delete', methods=['POST'])
@@ -348,8 +345,7 @@ def game_sessions_join(id):
 
 def main():
     db_session.global_init("db/boardgames.db")
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run()
 
 
 if __name__ == '__main__':
