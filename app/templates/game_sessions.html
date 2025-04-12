@@ -58,12 +58,17 @@
                         </form>
                     </div>
                     {% else %}
-                    <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-success" {% if session.current_players>=
-                            session.max_players %}disabled{% endif %}>
-                            <i class="fas fa-user-plus"></i> Присоединиться
-                        </button>
-                    </form>
+                        {% if current_user in session.participants %}
+                        <form action="{{ url_for('game_sessions_leave', id=session.id) }}" method="post" style="display: inline;">
+                            <button type="submit" class="btn btn-danger btn-sm">Отказаться</button>
+                        </form>
+                        {% else %}
+                        <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post" style="display: inline;">
+                            <button type="submit" class="btn btn-success btn-sm" {% if session.current_players >= session.max_players %}disabled{% endif %}>
+                                Присоединиться
+                            </button>
+                        </form>
+                        {% endif %}
                     {% endif %}
                     {% endif %}
                 </div>

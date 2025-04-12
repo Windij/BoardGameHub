@@ -239,25 +239,30 @@ def game_sessions():
 @login_required
 def game_session_new():
     form = GameSessionForm()
-    if form.validate_on_submit():
-        db_sess = db_session.create_session()
-        try:
+    db_sess = db_session.create_session()
+    try:
+        # Заполняем список игр
+        games = db_sess.query(Game).all()
+        form.game.choices = [(g.id, g.title) for g in games]
+        
+        if form.validate_on_submit():
             session = GameSession(
                 game_id=form.game.data,
                 date=form.date.data,
                 time=form.time.data,
-                location=form.location.data,
+                location=current_user.location,
                 description=form.description.data,
                 max_players=form.max_players.data,
                 creator_id=current_user.id,
                 current_players=1
             )
+            session.participants.append(current_user)
             db_sess.add(session)
             db_sess.commit()
             flash('Игровая встреча успешно создана!', 'success')
             return redirect('/game_sessions')
-        finally:
-            db_sess.close()
+    finally:
+        db_sess.close()
     
     return render_template('game_session_form.html', 
                          title='Новая встреча',
@@ -269,6 +274,10 @@ def game_sessions_edit(id):
     form = GameSessionForm()
     db_sess = db_session.create_session()
     try:
+        # Заполняем список игр
+        games = db_sess.query(Game).all()
+        form.game.choices = [(g.id, g.title) for g in games]
+        
         session = db_sess.query(GameSession).filter(
             GameSession.id == id,
             GameSession.creator_id == current_user.id
@@ -281,7 +290,6 @@ def game_sessions_edit(id):
             form.game.data = session.game_id
             form.date.data = session.date
             form.time.data = session.time
-            form.location.data = session.location
             form.description.data = session.description
             form.max_players.data = session.max_players
         
@@ -289,7 +297,6 @@ def game_sessions_edit(id):
             session.game_id = form.game.data
             session.date = form.date.data
             session.time = form.time.data
-            session.location = form.location.data
             session.description = form.description.data
             session.max_players = form.max_players.data
             
@@ -335,13 +342,39 @@ def game_sessions_join(id):
         if not session:
             abort(404)
         
-        if session.current_players >= session.max_players:
-            flash('К сожалению, все места уже заняты.', 'warning')
+        # Проверяем, не является ли пользователь уже участником
+        if current_user in session.participants:
+            flash('Вы уже участвуете в этой встрече!', 'warning')
             return redirect('/game_sessions')
         
-        session.current_players += 1
-        db_sess.commit()
-        flash('Вы успешно присоединились к встрече!', 'success')
+        if session.current_players >= session.max_players:
+            flash('К сожалению, все места уже заняты.', 'warning')
+        else:
+            session.participants.append(current_user)
+            session.current_players += 1
+            db_sess.commit()
+            flash('Вы успешно присоединились к встрече!', 'success')
+    finally:
+        db_sess.close()
+    return redirect('/game_sessions')
+
+@app.route('/game_sessions/<int:id>/leave', methods=['POST'])
+@login_required
+def game_sessions_leave(id):
+    db_sess = db_session.create_session()
+    try:
+        session = db_sess.get(GameSession, id)
+        
+        if not session:
+            abort(404)
+            
+        if current_user in session.participants:
+            session.participants.remove(current_user)
+            session.current_players -= 1
+            db_sess.commit()
+            flash('Вы успешно покинули встречу!', 'success')
+        else:
+            flash('Вы не являетесь участником этой встречи!', 'warning')
     finally:
         db_sess.close()
     return redirect('/game_sessions')

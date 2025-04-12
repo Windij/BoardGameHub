@@ -3,46 +3,30 @@
 {% block content %}
 <div class="container mt-4">
     <h1>{{ title }}</h1>
-    <form action="" method="post" class="needs-validation" novalidate>
+    <form action="" method="post">
         {{ form.hidden_tag() }}
         
         <div class="mb-3">
             <label for="game" class="form-label">{{ form.game.label }}</label>
             {{ form.game(class="form-control") }}
             {% for error in form.game.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
+            <div class="alert alert-danger">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="mb-3">
             <label for="date" class="form-label">{{ form.date.label }}</label>
-            {{ form.date(class="form-control") }}
+            {{ form.date(class="form-control", type="date") }}
             {% for error in form.date.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
+            <div class="alert alert-danger">{{ error }}</div>
             {% endfor %}
         </div>
 
         <div class="mb-3">
             <label for="time" class="form-label">{{ form.time.label }}</label>
-            {{ form.time(class="form-control") }}
+            {{ form.time(class="form-control", type="time") }}
             {% for error in form.time.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <div class="mb-3">
-            <label for="location" class="form-label">{{ form.location.label }}</label>
-            {{ form.location(class="form-control") }}
-            {% for error in form.location.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-            {% endfor %}
-        </div>
-
-        <div class="mb-3">
-            <label for="max_players" class="form-label">{{ form.max_players.label }}</label>
-            {{ form.max_players(class="form-control") }}
-            {% for error in form.max_players.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
+            <div class="alert alert-danger">{{ error }}</div>
             {% endfor %}
         </div>
 
@@ -50,11 +34,19 @@
             <label for="description" class="form-label">{{ form.description.label }}</label>
             {{ form.description(class="form-control") }}
             {% for error in form.description.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
+            <div class="alert alert-danger">{{ error }}</div>
             {% endfor %}
         </div>
 
-        <button type="submit" class="btn btn-primary">Сохранить</button>
+        <div class="mb-3">
+            <label for="max_players" class="form-label">{{ form.max_players.label }}</label>
+            {{ form.max_players(class="form-control", type="number", min="2") }}
+            {% for error in form.max_players.errors %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        {{ form.submit(type="submit", class="btn btn-primary") }}
         <a href="{{ url_for('game_sessions') }}" class="btn btn-secondary">Отмена</a>
     </form>
 </div>

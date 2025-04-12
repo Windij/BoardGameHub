@@ -1,10 +1,18 @@
 import sqlalchemy
 from sqlalchemy import orm
 from .db_session import SqlAlchemyBase
+from sqlalchemy_serializer import SerializerMixin
 from datetime import datetime
 
+# Таблица для связи many-to-many между пользователями и игровыми сессиями
+session_participants = sqlalchemy.Table(
+    'session_participants',
+    SqlAlchemyBase.metadata,
+    sqlalchemy.Column('user_id', sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id')),
+    sqlalchemy.Column('session_id', sqlalchemy.Integer, sqlalchemy.ForeignKey('game_sessions.id'))
+)
 
-class GameSession(SqlAlchemyBase):
+class GameSession(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'game_sessions'
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True, autoincrement=True)
@@ -21,3 +29,6 @@ class GameSession(SqlAlchemyBase):
 
     game = orm.relationship("Game", back_populates="sessions")
     creator = orm.relationship("User", back_populates="created_sessions")
+    participants = orm.relationship('User', 
+                                 secondary=session_participants,
+                                 backref='participated_sessions')
