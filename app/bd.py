@@ -97,7 +97,7 @@ def add_test_data():
             "duration": "30-45 минут",
             "count_of_players": "2-5",
             "genre": "Стратегия",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Стратегическая игра с плитками"
         },
         {
@@ -105,7 +105,7 @@ def add_test_data():
             "duration": "1-2 часа",
             "count_of_players": "3-6",
             "genre": "Карточные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Юмористическая карточная игра"
         },
         {
@@ -129,7 +129,7 @@ def add_test_data():
             "duration": "30-60 минут",
             "count_of_players": "4-12",
             "genre": "Партийные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Игра на объяснение слов"
         },
         {
@@ -153,7 +153,7 @@ def add_test_data():
             "duration": "15 минут",
             "count_of_players": "4-8",
             "genre": "Партийные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Командная игра на ассоциации"
         },
         {
@@ -177,7 +177,7 @@ def add_test_data():
             "duration": "1-2 часа",
             "count_of_players": "2-4",
             "genre": "Приключения",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Игра о поиске сокровищ"
         },
         {
@@ -185,7 +185,7 @@ def add_test_data():
             "duration": "15 минут",
             "count_of_players": "2-6",
             "genre": "Семейные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Игра на память"
         },
         {
@@ -201,7 +201,7 @@ def add_test_data():
             "duration": "15-30 минут",
             "count_of_players": "2-10",
             "genre": "Карточные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Популярная карточная игра"
         },
         {
@@ -217,7 +217,7 @@ def add_test_data():
             "duration": "1 час",
             "count_of_players": "4-16",
             "genre": "Партийные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Игра на объяснение слов разными способами"
         },
         {
@@ -233,7 +233,7 @@ def add_test_data():
             "duration": "15-30 минут",
             "count_of_players": "2-10",
             "genre": "Карточные",
-            "complexity": "Легкая",
+            "complexity": "Низкая",
             "description": "Веселая карточная игра"
         },
         {

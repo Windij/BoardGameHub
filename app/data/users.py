@@ -24,7 +24,7 @@ class User(SqlAlchemyBase, UserMixin):
 
     added_games = orm.relationship("Game", back_populates="user")
     created_sessions = orm.relationship("GameSession", back_populates="creator")
-    reviews = orm.relationship("Review", back_populates="author")
+    reviews = orm.relationship('Review', back_populates='user')
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)

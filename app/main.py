@@ -12,6 +12,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from forms.game_session import GameSessionForm
 from data.game_sessions import GameSession
 from sqlalchemy.orm import joinedload
+from data.reviews import Review
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -36,8 +37,8 @@ def load_user(user_id):
 def index():
     db_sess = db_session.create_session()
     
-    # Базовый запрос с предварительной загрузкой пользователя
-    query = db_sess.query(Game).options(joinedload(Game.user))
+    # Базовый запрос с предварительной загрузкой пользователя и отзывов
+    query = db_sess.query(Game).options(joinedload(Game.user), joinedload(Game.reviews))
     
     # Фильтрация по жанру
     genre = request.args.get('genre')
@@ -54,6 +55,14 @@ def index():
         )
     
     games = query.all()
+    
+    # Вычисляем средний рейтинг для каждой игры
+    for game in games:
+        if game.reviews:
+            game.rating = round(sum(review.rating for review in game.reviews) / len(game.reviews), 1)
+        else:
+            game.rating = 0
+    
     db_sess.close()
     return render_template("index.html", title="Главная", games=games)
 
@@ -378,6 +387,55 @@ def game_sessions_leave(id):
     finally:
         db_sess.close()
     return redirect('/game_sessions')
+
+@app.route('/game/<int:id>')
+def game_page(id):
+    db_sess = db_session.create_session()
+    game = db_sess.query(Game).options(joinedload(Game.reviews)).get(id)
+    if not game:
+        abort(404)
+    
+    # Вычисляем средний рейтинг
+    if game.reviews:
+        game.rating = round(sum(review.rating for review in game.reviews) / len(game.reviews), 1)
+    else:
+        game.rating = 0
+    
+    return render_template('game_page.html', game=game, reviews=game.reviews)
+
+@app.route('/game/<int:game_id>/review', methods=['POST'])
+@login_required
+def add_review(game_id):
+    db_sess = db_session.create_session()
+    try:
+        game = db_sess.get(Game, game_id)
+        if not game:
+            abort(404)
+            
+        # Проверяем, не оставлял ли пользователь уже отзыв
+        existing_review = db_sess.query(Review).filter(
+            Review.game_id == game_id,
+            Review.user_id == current_user.id
+        ).first()
+        
+        if existing_review:
+            flash('Вы уже оставляли отзыв к этой игре', 'warning')
+            return redirect(url_for('game_page', id=game_id))
+            
+        review = Review(
+            text=request.form['text'],
+            rating=int(request.form['rating']),
+            game_id=game_id,
+            user_id=current_user.id
+        )
+        
+        db_sess.add(review)
+        db_sess.commit()
+        flash('Ваш отзыв успешно добавлен!', 'success')
+        
+    finally:
+        db_sess.close()
+    return redirect(url_for('game_page', id=game_id))
 
 def main():
     db_session.global_init("db/boardgames.db")
