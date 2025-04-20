@@ -437,6 +437,37 @@ def add_review(game_id):
         db_sess.close()
     return redirect(url_for('game_page', id=game_id))
 
+
+@app.route('/game_sessions/<int:id>')
+def game_session_detail(id):
+    db_sess = db_session.create_session()
+    try:
+        session = db_sess.query(GameSession).options(
+            joinedload(GameSession.game),
+            joinedload(GameSession.creator),
+            joinedload(GameSession.participants)
+        ).filter(GameSession.id == id).first()
+
+        if not session:
+            abort(404)
+
+        # Получаем координаты для карты (можно добавить поле в модель или использовать геокодинг)
+        # В этом примере используем фиксированные координаты для демонстрации
+        map_coordinates = {
+            'latitude': 55.464743,  # Широта Кургана
+            'longitude': 65.275182,  # Долгота Кургана
+            'zoom': 12
+        }
+
+        return render_template(
+            'game_session_detail.html',
+            title='Детали встречи',
+            session=session,
+            map_coordinates=map_coordinates
+        )
+    finally:
+        db_sess.close()
+
 def main():
     db_session.global_init("db/boardgames.db")
     port = int(os.environ.get("PORT", 5000))
