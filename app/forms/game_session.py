@@ -7,6 +7,7 @@ class GameSessionForm(FlaskForm):
     game = SelectField('Игра', coerce=int, validators=[DataRequired()])
     date = DateField('Дата', format='%Y-%m-%d', validators=[DataRequired()])
     time = TimeField('Время', format='%H:%M', validators=[DataRequired()])
+    location = StringField('Место', validators=[DataRequired()])
     description = TextAreaField('Описание', validators=[DataRequired()])
     max_players = IntegerField('Максимальное количество игроков', validators=[DataRequired()])
     submit = SubmitField('Сохранить')

@@ -31,6 +31,14 @@
         </div>
 
         <div class="mb-3">
+            <label for="location" class="form-label">{{ form.location.label }}</label>
+            {{ form.location(class="form-control") }}
+            {% for error in form.location.errors %}
+            <div class="alert alert-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
             <label for="description" class="form-label">{{ form.description.label }}</label>
             {{ form.description(class="form-control") }}
             {% for error in form.description.errors %}
@@ -50,4 +58,4 @@
         <a href="{{ url_for('game_sessions') }}" class="btn btn-secondary">Отмена</a>
     </form>
 </div>
-{% endblock %} 
+{% endblock %}

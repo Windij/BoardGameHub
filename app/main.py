@@ -244,6 +244,7 @@ def game_sessions():
     finally:
         db_sess.close()
 
+
 @app.route('/game_sessions/new', methods=['GET', 'POST'])
 @login_required
 def game_session_new():
@@ -253,29 +254,38 @@ def game_session_new():
         # Заполняем список игр
         games = db_sess.query(Game).all()
         form.game.choices = [(g.id, g.title) for g in games]
-        
+
+        # Устанавливаем город пользователя как значение по умолчанию
+        if request.method == "GET":
+            form.location.data = current_user.location or ""  # Используем пустую строку если location=None
+
         if form.validate_on_submit():
             session = GameSession(
                 game_id=form.game.data,
                 date=form.date.data,
                 time=form.time.data,
-                location=current_user.location,
+                location=form.location.data,  # Используем значение из формы
                 description=form.description.data,
                 max_players=form.max_players.data,
                 creator_id=current_user.id,
-                current_players=1
+                current_players=1,
+                status="Запланировано"  # Явно устанавливаем статус
             )
             session.participants.append(current_user)
             db_sess.add(session)
             db_sess.commit()
             flash('Игровая встреча успешно создана!', 'success')
             return redirect('/game_sessions')
+    except Exception as e:
+        db_sess.rollback()
+        flash(f'Ошибка при создании встречи: {str(e)}', 'danger')
     finally:
         db_sess.close()
-    
-    return render_template('game_session_form.html', 
-                         title='Новая встреча',
-                         form=form)
+
+    return render_template('game_session_form.html',
+                           title='Новая встреча',
+                           form=form)
+
 
 @app.route('/game_sessions/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
