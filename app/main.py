@@ -1,7 +1,4 @@
-import datetime
-import os
-from io import BytesIO
-from flask import Flask, request, make_response, session, abort, send_file, flash, redirect, url_for
+from flask import Flask, request, make_response, session, abort, send_file, flash, redirect, url_for, jsonify
 from data import db_session
 from data.users import User
 from data.games import Game
@@ -13,6 +10,9 @@ from forms.game_session import GameSessionForm
 from data.game_sessions import GameSession
 from sqlalchemy.orm import joinedload
 from data.reviews import Review
+import datetime
+import os
+from io import BytesIO
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -36,15 +36,15 @@ def load_user(user_id):
 @app.route("/")
 def index():
     db_sess = db_session.create_session()
-    
+
     # Базовый запрос с предварительной загрузкой пользователя и отзывов
     query = db_sess.query(Game).options(joinedload(Game.user), joinedload(Game.reviews))
-    
+
     # Фильтрация по жанру
     genre = request.args.get('genre')
     if genre:
         query = query.filter(Game.genre == genre)
-    
+
     # Поиск по названию и описанию
     search = request.args.get('search')
     if search:
@@ -53,16 +53,16 @@ def index():
             (Game.title.ilike(search_term)) |
             (Game.description.ilike(search_term))
         )
-    
+
     games = query.all()
-    
+
     # Вычисляем средний рейтинг для каждой игры
     for game in games:
         if game.reviews:
             game.rating = round(sum(review.rating for review in game.reviews) / len(game.reviews), 1)
         else:
             game.rating = 0
-    
+
     db_sess.close()
     return render_template("index.html", title="Главная", games=games)
 
@@ -147,12 +147,12 @@ def add_games():
         game.complexity = form.complexity.data
         game.description = form.description.data
         game.added_by = current_user.id
-        
-        # Сохраняем изображение, если оно есть
+
+        # Обработка изображения
         if form.image.data:
             image_data = form.image.data.read()
             game.image = image_data
-        
+
         db_sess.add(game)
         db_sess.commit()
         return redirect('/')
@@ -166,7 +166,7 @@ def edit_game(id):
     if request.method == "GET":
         db_sess = db_session.create_session()
         game = db_sess.query(Game).filter(Game.id == id,
-                                        Game.added_by == current_user.id).first()
+                                          Game.added_by == current_user.id).first()
         if game:
             form.title.data = game.title
             form.duration.data = game.duration
@@ -179,7 +179,7 @@ def edit_game(id):
     if form.validate_on_submit():
         db_sess = db_session.create_session()
         game = db_sess.query(Game).filter(Game.id == id,
-                                        Game.added_by == current_user.id).first()
+                                          Game.added_by == current_user.id).first()
         if game:
             game.title = form.title.data
             game.duration = form.duration.data
@@ -187,12 +187,12 @@ def edit_game(id):
             game.genre = form.genre.data
             game.complexity = form.complexity.data
             game.description = form.description.data
-            
+
             # Обновляем изображение, если загружено новое
             if form.image.data:
                 image_data = form.image.data.read()
                 game.image = image_data
-            
+
             db_sess.commit()
             return redirect('/')
         else:
@@ -223,6 +223,7 @@ def utility_processor():
             return [genre[0] for genre in genres if genre[0]]
         finally:
             db_sess.close()
+
     return dict(get_unique_genres=get_unique_genres)
 
 
@@ -296,40 +297,41 @@ def game_sessions_edit(id):
         # Заполняем список игр
         games = db_sess.query(Game).all()
         form.game.choices = [(g.id, g.title) for g in games]
-        
+
         session = db_sess.query(GameSession).filter(
             GameSession.id == id,
             GameSession.creator_id == current_user.id
         ).first()
-        
+
         if not session:
             abort(404)
-        
+
         if request.method == "GET":
             form.game.data = session.game_id
             form.date.data = session.date
             form.time.data = session.time
             form.description.data = session.description
             form.max_players.data = session.max_players
-        
+
         if form.validate_on_submit():
             session.game_id = form.game.data
             session.date = form.date.data
             session.time = form.time.data
             session.description = form.description.data
             session.max_players = form.max_players.data
-            
+
             db_sess.commit()
             flash('Встреча успешно обновлена!', 'success')
             return redirect('/game_sessions')
-            
+
         return render_template('game_session_form.html',
-                             title='Редактирование встречи',
-                             form=form)
+                               title='Редактирование встречи',
+                               form=form)
     finally:
         db_sess.close()
-    
+
     return redirect('/game_sessions')
+
 
 @app.route('/game_sessions/<int:id>/delete', methods=['POST'])
 @login_required
@@ -340,7 +342,7 @@ def game_sessions_delete(id):
             GameSession.id == id,
             GameSession.creator_id == current_user.id
         ).first()
-        
+
         if session:
             db_sess.delete(session)
             db_sess.commit()
@@ -351,21 +353,22 @@ def game_sessions_delete(id):
         db_sess.close()
     return redirect('/game_sessions')
 
+
 @app.route('/game_sessions/<int:id>/join', methods=['POST'])
 @login_required
 def game_sessions_join(id):
     db_sess = db_session.create_session()
     try:
         session = db_sess.get(GameSession, id)
-        
+
         if not session:
             abort(404)
-        
+
         # Проверяем, не является ли пользователь уже участником
         if current_user in session.participants:
             flash('Вы уже участвуете в этой встрече!', 'warning')
             return redirect('/game_sessions')
-        
+
         if session.current_players >= session.max_players:
             flash('К сожалению, все места уже заняты.', 'warning')
         else:
@@ -377,16 +380,17 @@ def game_sessions_join(id):
         db_sess.close()
     return redirect('/game_sessions')
 
+
 @app.route('/game_sessions/<int:id>/leave', methods=['POST'])
 @login_required
 def game_sessions_leave(id):
     db_sess = db_session.create_session()
     try:
         session = db_sess.get(GameSession, id)
-        
+
         if not session:
             abort(404)
-            
+
         if current_user in session.participants:
             session.participants.remove(current_user)
             session.current_players -= 1
@@ -398,20 +402,22 @@ def game_sessions_leave(id):
         db_sess.close()
     return redirect('/game_sessions')
 
+
 @app.route('/game/<int:id>')
 def game_page(id):
     db_sess = db_session.create_session()
-    game = db_sess.query(Game).options(joinedload(Game.reviews)).get(id)
+    game = db_sess.get(Game, id, options=[joinedload(Game.reviews)])
     if not game:
         abort(404)
-    
+
     # Вычисляем средний рейтинг
     if game.reviews:
         game.rating = round(sum(review.rating for review in game.reviews) / len(game.reviews), 1)
     else:
         game.rating = 0
-    
+
     return render_template('game_page.html', game=game, reviews=game.reviews)
+
 
 @app.route('/game/<int:game_id>/review', methods=['POST'])
 @login_required
@@ -421,28 +427,28 @@ def add_review(game_id):
         game = db_sess.get(Game, game_id)
         if not game:
             abort(404)
-            
+
         # Проверяем, не оставлял ли пользователь уже отзыв
         existing_review = db_sess.query(Review).filter(
             Review.game_id == game_id,
             Review.user_id == current_user.id
         ).first()
-        
+
         if existing_review:
             flash('Вы уже оставляли отзыв к этой игре', 'warning')
             return redirect(url_for('game_page', id=game_id))
-            
+
         review = Review(
             text=request.form['text'],
             rating=int(request.form['rating']),
             game_id=game_id,
             user_id=current_user.id
         )
-        
+
         db_sess.add(review)
         db_sess.commit()
         flash('Ваш отзыв успешно добавлен!', 'success')
-        
+
     finally:
         db_sess.close()
     return redirect(url_for('game_page', id=game_id))
@@ -477,6 +483,56 @@ def game_session_detail(id):
         )
     finally:
         db_sess.close()
+
+
+@app.route('/check_upcoming_games')
+@login_required
+def check_upcoming_games():
+    # Проверяем, когда было последнее уведомление
+    last_notification = session.get('last_notification_time')
+    current_time = datetime.datetime.now()
+
+    if last_notification:
+        last_notification = datetime.datetime.fromisoformat(last_notification)
+        # Если прошло меньше часа, не показываем уведомление
+        if (current_time - last_notification).total_seconds() < 3600:  # 3600 секунд = 1 час
+            return jsonify({'upcoming_games': []})
+
+    db_sess = db_session.create_session()
+    try:
+        # Получаем встречи на завтра для текущего пользователя
+        tomorrow = datetime.date.today() + datetime.timedelta(days=1)
+        upcoming_games = db_sess.query(GameSession).join(
+            GameSession.participants
+        ).options(
+            joinedload(GameSession.game)
+        ).filter(
+            GameSession.date == tomorrow,
+            GameSession.participants.any(id=current_user.id)
+        ).all()
+
+        # Если есть предстоящие игры, обновляем время последнего уведомления
+        if upcoming_games:
+            session['last_notification_time'] = current_time.isoformat()
+
+        # Формируем список встреч для отправки
+        games_data = [{
+            'game_title': session.game.title,
+            'time': session.time.strftime('%H:%M'),
+            'location': session.location
+        } for session in upcoming_games]
+
+        return jsonify({'upcoming_games': games_data})
+    finally:
+        db_sess.close()
+
+
+@app.route('/test_notification')
+@login_required
+def test_notification():
+    """Тестовый маршрут для проверки уведомлений"""
+    return render_template('test_notification.html')
+
 
 def main():
     db_session.global_init("db/boardgames.db")

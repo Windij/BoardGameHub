@@ -226,7 +226,7 @@ def add_test_data():
             "count_of_players": "2-4",
             "genre": "Приключения",
             "complexity": "Средняя",
-            "description": "Приключенческая версия Манчкина"
+            "description": "Настольная версия карточной игры Манчкин."
         },
         {
             "title": "Свинтус",
@@ -242,7 +242,7 @@ def add_test_data():
             "count_of_players": "3-4",
             "genre": "Стратегия",
             "complexity": "Высокая",
-            "description": "Расширение для Колонизаторов"
+            "description": "Расширение для базовой игры Колонизаторы с новыми механиками."
         }
     ]
 

@@ -28,7 +28,7 @@
                             {{ session.status }}
                         </span>
                     </div>
-                    
+
                     <div class="game-session-info">
                         <p class="mb-2">
                             <i class="bi bi-calendar me-2"></i>
@@ -44,7 +44,8 @@
                         </p>
                         <p class="mb-2">
                             <i class="bi bi-people me-2"></i>
-                            <span class="fw-bold">Участники:</span> {{ session.current_players }}/{{ session.max_players }}
+                            <span class="fw-bold">Участники:</span> {{ session.current_players }}/{{ session.max_players
+                            }}
                         </p>
                         <p class="mb-2">
                             <i class="bi bi-person-circle me-2"></i>
@@ -60,41 +61,43 @@
 
                     <div class="mt-3 d-flex flex-wrap gap-2">
                         {% if current_user.is_authenticated %}
-                            {% if current_user.id != session.creator_id %}
-                                {% if current_user in session.participants %}
-                                    <form action="{{ url_for('game_sessions_leave', id=session.id) }}" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-outline-danger">
-                                            <i class="bi bi-x-circle me-2"></i>Отказаться
-                                        </button>
-                                    </form>
-                                {% else %}
-                                    {% if session.current_players < session.max_players %}
-                                        <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post" class="d-inline">
-                                            <button type="submit" class="btn btn-outline-success">
-                                                <i class="bi bi-check-circle me-2"></i>Присоединиться
-                                            </button>
-                                        </form>
-                                    {% endif %}
-                                {% endif %}
-                            {% endif %}
+                        {% if current_user.id != session.creator_id %}
+                        {% if current_user in session.participants %}
+                        <form action="{{ url_for('game_sessions_leave', id=session.id) }}" method="post"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-x-circle me-2"></i>Отказаться
+                            </button>
+                        </form>
+                        {% else %}
+                        {% if session.current_players < session.max_players %}
+                        <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-outline-success">
+                                <i class="bi bi-check-circle me-2"></i>Присоединиться
+                            </button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                        {% endif %}
 
-                            <!-- Новая кнопка "Место на карте" -->
-                            <a href="{{ url_for('game_session_detail', id=session.id) }}" class="btn btn-outline-info">
-                                <i class="bi bi-map me-2"></i>Место на карте
-                            </a>
+                        <!-- Новая кнопка "Место на карте" -->
+                        <a href="{{ url_for('game_session_detail', id=session.id) }}" class="btn btn-outline-info">
+                            <i class="bi bi-map me-2"></i>Место на карте
+                        </a>
 
-                            {% if current_user.id == session.creator_id %}
-                                <a href="{{ url_for('game_sessions_edit', id=session.id) }}" class="btn btn-outline-primary">
-                                    <i class="bi bi-pencil me-2"></i>Редактировать
-                                </a>
-                                <form action="{{ url_for('game_sessions_delete', id=session.id) }}" method="post"
-                                      class="d-inline">
-                                    <button type="submit" class="btn btn-outline-danger"
-                                            onclick="return confirm('Вы уверены, что хотите удалить эту встречу?')">
-                                        <i class="bi bi-trash me-2"></i>Удалить
-                                    </button>
-                                </form>
-                            {% endif %}
+                        {% if current_user.id == session.creator_id %}
+                        <a href="{{ url_for('game_sessions_edit', id=session.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-pencil me-2"></i>Редактировать
+                        </a>
+                        <form action="{{ url_for('game_sessions_delete', id=session.id) }}" method="post"
+                              class="d-inline">
+                            <button type="submit" class="btn btn-outline-danger"
+                                    onclick="return confirm('Вы уверены, что хотите удалить эту встречу?')">
+                                <i class="bi bi-trash me-2"></i>Удалить
+                            </button>
+                        </form>
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>
@@ -115,7 +118,6 @@
     </div>
 </div>
 {% endblock %}
-
 {% block styles %}
 <style>
     .card {

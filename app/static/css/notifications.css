@@ -1,0 +1,61 @@
+.site-notification {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 600px;
+    animation: slideDown 0.5s ease-out;
+}
+
+.notification-content {
+    background-color: #4a90e2;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 auto;
+}
+
+.notification-content i.fa-bell {
+    font-size: 1.2em;
+    color: #fff;
+}
+
+.notification-content span {
+    flex-grow: 1;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    font-size: 1.2em;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.close-btn:hover {
+    opacity: 1;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translate(-50%, -100%);
+        opacity: 0;
+    }
+    to {
+        transform: translate(-50%, 0);
+        opacity: 1;
+    }
+}
+
+.site-notification + .site-notification {
+    margin-top: 10px;
+} 

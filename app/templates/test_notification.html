@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Тестирование уведомлений</h1>
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5 class="card-title">Проверка уведомлений</h5>
+            <p class="card-text">Нажмите кнопку ниже, чтобы проверить работу уведомлений:</p>
+            <button class="btn btn-primary" onclick="testNotification()">
+                <i class="fas fa-bell"></i> Показать тестовое уведомление
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+function testNotification() {
+    showNotification('Это тестовое уведомление! Проверка звука и отображения.');
+}
+</script>
+{% endblock %} 
