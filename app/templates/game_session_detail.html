@@ -41,35 +41,51 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h4>Место встречи на карте</h4>
+                    <h4>Место встречи</h4>
                 </div>
                 <div class="card-body p-0">
-                    <div id="map" style="width: 100%; height: 400px;"></div>
+                    <div id="interactive-map" style="width: 100%; height: 400px;"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Яндекс.Карты API -->
-<script src="https://api-maps.yandex.ru/2.1/?apikey=f3a0fe3a-b07e-4840-a1da-06f18b2ddf13&lang=ru_RU"></script>
+<!-- Подключаем API Яндекс.Карт -->
+<script src="https://api-maps.yandex.ru/2.1/?apikey=8013b162-6b42-4997-9691-77b7074026e0&lang=ru_RU"></script>
 <script>
-    ymaps.ready(init);
-
-    function init() {
-        const map = new ymaps.Map("map", {
+    ymaps.ready(function() {
+        const map = new ymaps.Map("interactive-map", {
             center: [{{ map_coordinates.latitude }}, {{ map_coordinates.longitude }}],
             zoom: {{ map_coordinates.zoom }},
             controls: ['zoomControl', 'typeSelector']
         });
 
-        // Добавляем метку
-        const placemark = new ymaps.Placemark([{{ map_coordinates.latitude }}, {{ map_coordinates.longitude }}], {
-            hintContent: '{{ session.location }}',
-            balloonContent: 'Место встречи'
-        });
+        const placemark = new ymaps.Placemark(
+            [{{ map_coordinates.latitude }}, {{ map_coordinates.longitude }}],
+            {
+                hintContent: '{{ map_coordinates.location_query }}',
+                balloonContent: '{{ map_coordinates.location_query }}'
+            },
+            {
+                preset: 'islands#dotIcon',
+                iconColor: '{% if map_coordinates.is_exact %}#ff0000{% else %}#1e98ff{% endif %}',
+                balloonCloseButton: true
+            }
+        );
 
         map.geoObjects.add(placemark);
-    }
+
+        // Автоматически центрируем карту на метке
+        map.setBounds(map.geoObjects.getBounds(), {
+            checkZoomRange: true,
+            zoomMargin: 50
+        });
+
+        // Для точных адресов открываем балун
+        {% if map_coordinates.is_exact %}
+        placemark.balloon.open();
+        {% endif %}
+    });
 </script>
 {% endblock %}
