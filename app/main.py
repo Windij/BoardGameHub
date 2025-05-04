@@ -227,18 +227,49 @@ def utility_processor():
     return dict(get_unique_genres=get_unique_genres)
 
 
+def update_session_statuses(db_sess):
+    """Обновляет статусы игровых встреч"""
+    current_datetime = datetime.datetime.now()
+
+    # Получаем все запланированные сессии
+    sessions = db_sess.query(GameSession).filter(
+        GameSession.status == "Запланировано"
+    ).all()
+
+    for session in sessions:
+        # Преобразуем дату и время сессии в datetime
+        session_datetime = datetime.datetime.combine(session.date, session.time)
+
+        # Если время начала сессии прошло, меняем статус на "Завершено"
+        if current_datetime > session_datetime:
+            session.status = "Завершено"
+
+    db_sess.commit()
+
+
 @app.route('/game_sessions')
 def game_sessions():
     db_sess = db_session.create_session()
     try:
+        # Обновляем статусы перед отображением списка
+        update_session_statuses(db_sess)
+
         if current_user.is_authenticated:
-            # Получаем все сессии из города пользователя
-            sessions = db_sess.query(GameSession).options(
+            # Базовый запрос для получения сессий из города пользователя
+            query = db_sess.query(GameSession).options(
                 joinedload(GameSession.game),
                 joinedload(GameSession.creator)
             ).filter(
                 GameSession.location.like(f"%{current_user.location}%")
-            ).order_by(GameSession.date).all()
+            )
+            
+            # Для обычных пользователей скрываем завершённые встречи, где они не создатели
+            query = query.filter(
+                (GameSession.status != "Завершено") | 
+                (GameSession.creator_id == current_user.id)
+            )
+            
+            sessions = query.order_by(GameSession.date).all()
         else:
             sessions = []
         return render_template('game_sessions.html', sessions=sessions)
@@ -458,6 +489,9 @@ def add_review(game_id):
 def game_session_detail(id):
     db_sess = db_session.create_session()
     try:
+        # Обновляем статусы перед отображением деталей
+        update_session_statuses(db_sess)
+
         session = db_sess.query(GameSession).options(
             joinedload(GameSession.game),
             joinedload(GameSession.creator),
@@ -466,9 +500,13 @@ def game_session_detail(id):
 
         if not session:
             abort(404)
+            
+        # Проверяем доступ к завершённой встрече
+        if session.status == "Завершено" and session.creator_id != current_user.id:
+            flash('У вас нет доступа к этой встрече', 'warning')
+            return redirect(url_for('game_sessions'))
 
-        # Получаем координаты для карты (можно добавить поле в модель или использовать геокодинг)
-        # В этом примере используем фиксированные координаты для демонстрации
+        # Получаем координаты для карты
         map_coordinates = {
             'latitude': 55.464743,  # Широта Кургана
             'longitude': 65.275182,  # Долгота Кургана
