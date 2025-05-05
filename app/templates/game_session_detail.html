@@ -3,6 +3,7 @@
 {% block content %}
 <div class="container mt-4">
     <div class="row">
+        <!-- Левая часть с информацией о встрече -->
         <div class="col-md-6">
             <div class="card mb-4">
                 <div class="card-header">
@@ -17,55 +18,74 @@
                     <p><strong>Описание:</strong></p>
                     <p>{{ session.description }}</p>
 
-                    <h4>Участники:</h4>
-                    <ul class="list-group mb-3">
-                        {% for participant in session.participants %}
-                        <li class="list-group-item">{{ participant.name }}</li>
-                        {% endfor %}
-                    </ul>
-
-                    {% if current_user.is_authenticated %}
-                        {% if current_user not in participants %}
-                        <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post">
-                            <button type="submit" class="btn btn-success">Присоединиться</button>
-                        </form>
-                        {% else %}
-                        <form action="{{ url_for('game_sessions_leave', id=session.id) }}" method="post">
-                            <button type="submit" class="btn btn-danger">Отказаться</button>
-                        </form>
+                    <div class="mt-3">
+                        {% if current_user.is_authenticated %}
+                            {% if current_user in session.participants %}
+                                <form action="{{ url_for('game_sessions_leave', id=session.id) }}" method="post">
+                                    <button type="submit" class="btn btn-danger">Покинуть встречу</button>
+                                </form>
+                            {% elif session.current_players < session.max_players %}
+                                <form action="{{ url_for('game_sessions_join', id=session.id) }}" method="post">
+                                    <button type="submit" class="btn btn-success">Присоединиться</button>
+                                </form>
+                            {% else %}
+                                <button class="btn btn-secondary" disabled>Все места заняты</button>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-        
+
+        <!-- Правая часть с картой -->
         <div class="col-md-6">
             <div class="card">
-                <div class="card-body">
-                    <div id="map" style="width: 100%; height: 400px;"></div>
+                <div class="card-header">
+                    <h4>Место встречи</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div id="interactive-map" style="width: 100%; height: 400px;"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script src="https://api-maps.yandex.ru/2.1/?apikey=ваш_API_ключ&lang=ru_RU" type="text/javascript"></script>
-<script type="text/javascript">
-    ymaps.ready(init);
-    function init(){
-        var myMap = new ymaps.Map("map", {
+<!-- Подключаем API Яндекс.Карт -->
+<script src="https://api-maps.yandex.ru/2.1/?apikey=8013b162-6b42-4997-9691-77b7074026e0&lang=ru_RU"></script>
+<script>
+    ymaps.ready(function() {
+        const map = new ymaps.Map("interactive-map", {
             center: [{{ map_coordinates.latitude }}, {{ map_coordinates.longitude }}],
-            zoom: {{ map_coordinates.zoom }}
+            zoom: {{ map_coordinates.zoom }},
+            controls: ['zoomControl', 'typeSelector']
         });
 
-        var myPlacemark = new ymaps.Placemark(
+        const placemark = new ymaps.Placemark(
             [{{ map_coordinates.latitude }}, {{ map_coordinates.longitude }}],
             {
-                balloonContent: '{{ session.location }}'
+                hintContent: '{{ map_coordinates.location_query }}',
+                balloonContent: '{{ map_coordinates.location_query }}'
+            },
+            {
+                preset: 'islands#dotIcon',
+                iconColor: '{% if map_coordinates.is_exact %}#ff0000{% else %}#1e98ff{% endif %}',
+                balloonCloseButton: true
             }
         );
 
-        myMap.geoObjects.add(myPlacemark);
-    }
+        map.geoObjects.add(placemark);
+
+        // Автоматически центрируем карту на метке
+        map.setBounds(map.geoObjects.getBounds(), {
+            checkZoomRange: true,
+            zoomMargin: 50
+        });
+
+        // Для точных адресов открываем балун
+        {% if map_coordinates.is_exact %}
+        placemark.balloon.open();
+        {% endif %}
+    });
 </script>
 {% endblock %}

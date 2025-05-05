@@ -13,6 +13,10 @@ from data.reviews import Review
 import datetime
 import os
 from io import BytesIO
+from urllib.parse import quote
+import requests
+from flask import abort, render_template
+from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
@@ -32,6 +36,48 @@ def load_user(user_id):
     db_sess.close()
     return user
 
+YANDEX_API_KEY = "8013b162-6b42-4997-9691-77b7074026e0"
+
+
+def geocode_address(address):
+    """Функция для геокодирования адреса через Яндекс.API"""
+    try:
+        # Кодируем адрес для URL
+        encoded_address = quote(address)
+
+        # Формируем URL запроса
+        geocode_url = f"https://geocode-maps.yandex.ru/1.x/?apikey={YANDEX_API_KEY}&geocode={encoded_address}&format=json"
+
+        # Отправляем запрос с таймаутом
+        response = requests.get(geocode_url, timeout=5)
+        response.raise_for_status()
+
+        data = response.json()
+
+        # Проверяем наличие результатов
+        features = data.get('response', {}).get('GeoObjectCollection', {}).get('featureMember', [])
+        if not features:
+            return None
+
+        # Извлекаем координаты
+        pos = features[0]['GeoObject']['Point']['pos']
+        longitude, latitude = map(float, pos.split())
+
+        # Определяем точность
+        precision = features[0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['precision']
+        is_exact = precision in ['exact', 'number', 'near', 'range']
+
+        return {
+            'latitude': latitude,
+            'longitude': longitude,
+            'zoom': 15 if is_exact else 12,
+            'is_exact': is_exact,
+            'location_query': address
+        }
+
+    except Exception as e:
+        print(f"Ошибка геокодирования: {str(e)}")
+        return None
 
 @app.route("/")
 def index():
@@ -489,39 +535,31 @@ def add_review(game_id):
 def game_session_detail(id):
     db_sess = db_session.create_session()
     try:
-        # Обновляем статусы перед отображением деталей
-        update_session_statuses(db_sess)
-
-        session = db_sess.query(GameSession).options(
-            joinedload(GameSession.game),
-            joinedload(GameSession.creator),
-            joinedload(GameSession.participants)
-        ).filter(GameSession.id == id).first()
-
+        session = db_sess.get(GameSession, id)
         if not session:
             abort(404)
-            
-        # Проверяем доступ к завершённой встрече
-        if session.status == "Завершено" and session.creator_id != current_user.id:
-            flash('У вас нет доступа к этой встрече', 'warning')
-            return redirect(url_for('game_sessions'))
 
-        # Получаем координаты для карты
-        map_coordinates = {
-            'latitude': 55.464743,  # Широта Кургана
-            'longitude': 65.275182,  # Долгота Кургана
-            'zoom': 12
-        }
+        # Пытаемся геокодировать адрес
+        coordinates = geocode_address(session.location)
+
+        # Если геокодирование не удалось, используем центр Кургана
+        if not coordinates:
+            coordinates = {
+                'latitude': 55.441004,
+                'longitude': 65.341118,
+                'zoom': 12,
+                'is_exact': False,
+                'location_query': session.location
+            }
 
         return render_template(
             'game_session_detail.html',
             title='Детали встречи',
             session=session,
-            map_coordinates=map_coordinates
+            map_coordinates=coordinates
         )
     finally:
         db_sess.close()
-
 
 @app.route('/check_upcoming_games')
 @login_required
@@ -533,7 +571,7 @@ def check_upcoming_games():
     if last_notification:
         last_notification = datetime.datetime.fromisoformat(last_notification)
         # Если прошло меньше часа, не показываем уведомление
-        if (current_time - last_notification).total_seconds() < 3600:  # 3600 секунд = 1 час
+        if (current_time - last_notification).total_seconds() < 500:  # 3600 секунд = 1 час
             return jsonify({'upcoming_games': []})
 
     db_sess = db_session.create_session()
