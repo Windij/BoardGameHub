@@ -1,21 +1,18 @@
-from flask import Flask, request, make_response, session, abort, send_file, flash, redirect, url_for, jsonify
+from flask import Flask, request, session, send_file, flash, redirect, url_for, jsonify, abort, render_template
 from data import db_session
 from data.users import User
 from data.games import Game
-from flask import render_template
 from forms.user import RegisterForm, LoginForm
 from forms.game import GameForm
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from forms.game_session import GameSessionForm
 from data.game_sessions import GameSession
-from sqlalchemy.orm import joinedload
 from data.reviews import Review
 import datetime
 import os
 from io import BytesIO
 from urllib.parse import quote
 import requests
-from flask import abort, render_template
 from sqlalchemy.orm import joinedload
 
 app = Flask(__name__)
@@ -42,28 +39,18 @@ YANDEX_API_KEY = "8013b162-6b42-4997-9691-77b7074026e0"
 def geocode_address(address):
     """Функция для геокодирования адреса через Яндекс.API"""
     try:
-        # Кодируем адрес для URL
         encoded_address = quote(address)
-
-        # Формируем URL запроса
         geocode_url = f"https://geocode-maps.yandex.ru/1.x/?apikey={YANDEX_API_KEY}&geocode={encoded_address}&format=json"
-
-        # Отправляем запрос с таймаутом
         response = requests.get(geocode_url, timeout=5)
         response.raise_for_status()
-
         data = response.json()
-
-        # Проверяем наличие результатов
         features = data.get('response', {}).get('GeoObjectCollection', {}).get('featureMember', [])
         if not features:
             return None
 
-        # Извлекаем координаты
         pos = features[0]['GeoObject']['Point']['pos']
         longitude, latitude = map(float, pos.split())
 
-        # Определяем точность
         precision = features[0]['GeoObject']['metaDataProperty']['GeocoderMetaData']['precision']
         is_exact = precision in ['exact', 'number', 'near', 'range']
 
@@ -82,8 +69,6 @@ def geocode_address(address):
 @app.route("/")
 def index():
     db_sess = db_session.create_session()
-
-    # Базовый запрос с предварительной загрузкой пользователя и отзывов
     query = db_sess.query(Game).options(joinedload(Game.user), joinedload(Game.reviews))
 
     # Фильтрация по жанру
@@ -194,7 +179,6 @@ def add_games():
         game.description = form.description.data
         game.added_by = current_user.id
 
-        # Обработка изображения
         if form.image.data:
             image_data = form.image.data.read()
             game.image = image_data
@@ -234,7 +218,6 @@ def edit_game(id):
             game.complexity = form.complexity.data
             game.description = form.description.data
 
-            # Обновляем изображение, если загружено новое
             if form.image.data:
                 image_data = form.image.data.read()
                 game.image = image_data
@@ -277,16 +260,13 @@ def update_session_statuses(db_sess):
     """Обновляет статусы игровых встреч"""
     current_datetime = datetime.datetime.now()
 
-    # Получаем все запланированные сессии
     sessions = db_sess.query(GameSession).filter(
         GameSession.status == "Запланировано"
     ).all()
 
     for session in sessions:
-        # Преобразуем дату и время сессии в datetime
         session_datetime = datetime.datetime.combine(session.date, session.time)
 
-        # Если время начала сессии прошло, меняем статус на "Завершено"
         if current_datetime > session_datetime:
             session.status = "Завершено"
 
@@ -297,19 +277,15 @@ def update_session_statuses(db_sess):
 def game_sessions():
     db_sess = db_session.create_session()
     try:
-        # Обновляем статусы перед отображением списка
         update_session_statuses(db_sess)
 
         if current_user.is_authenticated:
-            # Базовый запрос для получения сессий из города пользователя
             query = db_sess.query(GameSession).options(
                 joinedload(GameSession.game),
                 joinedload(GameSession.creator)
             ).filter(
                 GameSession.location.like(f"%{current_user.location}%")
             )
-            
-            # Для обычных пользователей скрываем завершённые встречи, где они не создатели
             query = query.filter(
                 (GameSession.status != "Завершено") | 
                 (GameSession.creator_id == current_user.id)
@@ -329,25 +305,24 @@ def game_session_new():
     form = GameSessionForm()
     db_sess = db_session.create_session()
     try:
-        # Заполняем список игр
         games = db_sess.query(Game).all()
         form.game.choices = [(g.id, g.title) for g in games]
 
         # Устанавливаем город пользователя как значение по умолчанию
         if request.method == "GET":
-            form.location.data = current_user.location or ""  # Используем пустую строку если location=None
+            form.location.data = current_user.location or ""
 
         if form.validate_on_submit():
             session = GameSession(
                 game_id=form.game.data,
                 date=form.date.data,
                 time=form.time.data,
-                location=form.location.data,  # Используем значение из формы
+                location=form.location.data,
                 description=form.description.data,
                 max_players=form.max_players.data,
                 creator_id=current_user.id,
                 current_players=1,
-                status="Запланировано"  # Явно устанавливаем статус
+                status="Запланировано"
             )
             session.participants.append(current_user)
             db_sess.add(session)
@@ -371,7 +346,6 @@ def game_sessions_edit(id):
     form = GameSessionForm()
     db_sess = db_session.create_session()
     try:
-        # Заполняем список игр
         games = db_sess.query(Game).all()
         form.game.choices = [(g.id, g.title) for g in games]
 
@@ -538,8 +512,6 @@ def game_session_detail(id):
         session = db_sess.get(GameSession, id)
         if not session:
             abort(404)
-
-        # Пытаемся геокодировать адрес
         coordinates = geocode_address(session.location)
 
         # Если геокодирование не удалось, используем центр Кургана
@@ -571,7 +543,7 @@ def check_upcoming_games():
     if last_notification:
         last_notification = datetime.datetime.fromisoformat(last_notification)
         # Если прошло меньше часа, не показываем уведомление
-        if (current_time - last_notification).total_seconds() < 500:  # 3600 секунд = 1 час
+        if (current_time - last_notification).total_seconds() < 10:
             return jsonify({'upcoming_games': []})
 
     db_sess = db_session.create_session()

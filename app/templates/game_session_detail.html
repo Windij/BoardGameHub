@@ -15,6 +15,10 @@
                     <p><strong>Место:</strong> {{ session.location }}</p>
                     <p><strong>Организатор:</strong> {{ session.creator.name }}</p>
                     <p><strong>Участники:</strong> {{ session.current_players }}/{{ session.max_players }}</p>
+                    {% for user in session.participants %}
+                    <div>{{ user.surname }} {{ user.name }}</div>
+                    {% endfor %}
+
                     <p><strong>Описание:</strong></p>
                     <p>{{ session.description }}</p>
 
