@@ -35,7 +35,7 @@
                         </p>
                         <p class="mb-2">
                             <i class="bi bi-clock me-2"></i>
-                            <span class="fw-bold">Время партии:</span> {{ game.duration }} мин.
+                            <span class="fw-bold">Время партии:</span> {{ game.duration }}
                         </p>
                         <p class="mb-2">
                             <i class="bi bi-people me-2"></i>
@@ -44,9 +44,6 @@
                     </div>
 
                     <div class="d-grid gap-2 mt-3">
-                        <button class="btn btn-outline-primary">
-                            <i class="bi bi-heart me-2"></i>Добавить в избранное
-                        </button>
                         <a href="{{ url_for('game_session_new', game_id=game.id) }}" class="btn btn-primary">
                             <i class="bi bi-plus-circle me-2"></i>Создать встречу
                         </a>
