@@ -543,7 +543,7 @@ def check_upcoming_games():
     if last_notification:
         last_notification = datetime.datetime.fromisoformat(last_notification)
         # Если прошло меньше часа, не показываем уведомление
-        if (current_time - last_notification).total_seconds() < 10:
+        if (current_time - last_notification).total_seconds() < 20:
             return jsonify({'upcoming_games': []})
 
     db_sess = db_session.create_session()
